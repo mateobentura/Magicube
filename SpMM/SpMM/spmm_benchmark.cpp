@@ -22,49 +22,6 @@ int power2n(int n){
     return exp;
 }
 
-//template <typename TypeA>
-//double compute_ref_integers(TypeA *A, int *B, int *ref_C, int M_GLOBAL, int K_GLOBAL, int N_GLOBAL, int preA, int preB, int vec_length, int *row_offsets, int *col_indices, int m_vec) {
-//    TypeA maskA = (TypeA)(power2n(preA)-1); //0b0000000011111111 for 8 bits
-//    int maskB = power2n(preB)-1; //0b0000000011111111 for 8 bits
-//
-//    // Initialize the output matrix with 0
-//    for(int i=0; i < M_GLOBAL * N_GLOBAL; i++){
-//        ref_C[i] = 0;
-//    }
-//
-//    double flops = 0;     
-//    int b_tile = 32/preB;
-//    printf("cpu: maskA %d, maskB %d, vec_length %d, b_tile %d\n", maskA, maskB, vec_length, b_tile); 
-//    // traverse all the vector rows
-//    for(int i=0; i < m_vec; i++){
-//        // traverse all the nonzero columns in this row
-//        for(int j=row_offsets[i]; j < row_offsets[i+1]; j++){
-//            int col_idx = col_indices[j];
-//	    TypeA A_vec_tile = A[j];
-//            // traverse all the elements in the vector
-//            for(int av=0; av < vec_length; av++){
-//                int row_idx = i * vec_length + av;
-//                int shift_a = av*preA;
-//                int a_val = (int)(((maskA << shift_a) & A_vec_tile) >> shift_a);
-//                for(int n=0; n < N_GLOBAL/b_tile; n++){
-//		    int B_tile = B[col_idx * (N_GLOBAL/b_tile) + n];
-//                    for(int bv=0; bv < b_tile; bv++){
-//			int shift_b = bv*preB;
-//                        int b_val = ((maskB << shift_b) & B_tile) >> shift_b;
-//		        if(a_val>maskA || a_val<0 || b_val<0 || b_val>maskB)
-//		            printf("cpu compute error");
-//                        ref_C[row_idx*N_GLOBAL + n*b_tile + bv] += a_val*b_val;
-//			//if(i == 1 && av == 1)
-//		        //    printf("a_val %d, b_val %d, intermediate value %d\n", a_val, b_val, a_val*b_val);
-//                        flops += 2.0;
-//	            }
-//                }
-//            }
-//        }
-//    }
-//    return flops;
-//}
-
 // vector type size larger than long long
 template <typename TypeA>
 double compute_ref_integers(TypeA *A, int *B, int *ref_C, int M_GLOBAL, int K_GLOBAL, int N_GLOBAL, int preA, int preA_cut, int preB, int vec_length, int *row_offsets, int *col_indices, int m_vec, int scaleA) {
@@ -176,18 +133,6 @@ void BmFN(std::string benchmark, int N, int vec_length, int kernel, bool sorted,
 
         int *aligned_row_offsets = new int[m_vec*2];
 	int aligned_num_item = 0;
-	//int warp_width = 32;
-	//if(preA == 8 && preB == 8 && vec_length == 4)
-	//    warp_width = 16;
-	//else if(preA == 8 && preB == 8 && vec_length == 8)
-	//    warp_width = 16;
-	//else if(preA == 8 && preB == 4 && vec_length == 4)
-	//    warp_width = 32;
-        //else if(preA == 4 && preB == 4 && vec_length == 8)
-        //    warp_width = 32;
-	//else if(preA == 4 && preB == 4 && vec_length == 4)
-        //    warp_width = 32;
-        //    //warp_width = 64;
 
 	aligned_row_offsets[0] = aligned_num_item;
 	for(int i = 1; i < m_vec + 1; i++){
@@ -607,24 +552,6 @@ void BmFN(std::string benchmark, int N, int vec_length, int kernel, bool sorted,
 	    }
         }
 	else if(kernel == 0){
-            //printf("Using WMMA \n");
-	    //for(int iter=0; iter<NUM_PROFILES; ++iter){
-	    //    float spmm_ms = 0.0f;
-	    //    cudaEvent_t spmm_start;
-	    //    cudaEvent_t spmm_end;
-	    //    cudaEventCreate(&spmm_start);
-	    //    cudaEventCreate(&spmm_end);
-	    //    cudaEventRecord(spmm_start);
-            //    spmm::wmmaSpmm(m_vec, vec_length, k, n, d_row_indices, d_row_offsets, d_col_indices, d_values, d_rhs_matrix, d_output_value);
-	    //    cudaEventRecord(spmm_end);
-	    //    cudaEventSynchronize(spmm_end);
-	    //    cudaEventElapsedTime(&spmm_ms, spmm_start, spmm_end);
-            //    cudaEventDestroy(spmm_start);
-            //    cudaEventDestroy(spmm_end);
-            //    spmm_ms_avg += spmm_ms;
-	    //}
-            //spmm_ms_avg = spmm_ms_avg/(float)NUM_PROFILES/1000.0;
-            //std::cout << "performance GFLOP/s: " << flops/spmm_ms_avg << "\n";
             printf("Unsupported Kernel \n");
         }
         else{
@@ -638,79 +565,6 @@ void BmFN(std::string benchmark, int N, int vec_length, int kernel, bool sorted,
 	}
 
         cudaProfilerStop();
-
-        //else if (kernel == 1){
-        //    printf("Using CUDA \n");
-        //    spmm::cudaSpmm(m_vec, vec_length, k, n, d_row_indices, d_row_offsets, d_col_indices, d_values, d_rhs_matrix, d_output_value);
-        //}
-        //else if (kernel == 2){
-        //    printf("Using Sputnik \n");
-        //    DTypeVec* d_values_vec = reinterpret_cast<DTypeVec *>(d_values);
-        //    DTypeVec* d_rhs_matrix_vec = reinterpret_cast<DTypeVec *>(d_rhs_matrix);
-        //    DTypeVec* d_output_value_vec = reinterpret_cast<DTypeVec *>(d_output_value);
-        //    ITypeVec* d_col_indices_sputnik_vec = reinterpret_cast<ITypeVec *>(d_col_indices_sputnik);
-        //    sputnik::CudaSpmm(m, n, k, nonzeros, d_row_indices, d_values_vec, d_row_offsets, d_col_indices_sputnik_vec, d_rhs_matrix_vec, d_output_value_vec, 0);
-        //}
-        //else if (kernel == 3){
-        //    printf("Using CuSPARSE \n");
-        //    cusparseHandle_t handle;
-        //    cusparseDnMatDescr_t rhs_dense, output_dense;
-        //    cusparseSpMatDescr_t lhs_sparse;
-
-        //    cusparseCreate(&handle);
-
-        //    // create lhs sparse matrix
-        //    cusparseCreateCsr(
-        //        &lhs_sparse, m, n, nonzeros_vec, d_row_offsets, d_col_indices, d_values,
-        //        CUSPARSE_INDEX_32I, CUSPARSE_INDEX_32I, CUSPARSE_INDEX_BASE_ZERO, DCuSPARSE
-        //    );
-        //    
-        //    // create rhs dense matrix
-        //    cusparseCreateDnMat(
-        //        &rhs_dense, n, k, k, d_rhs_matrix, DCuSPARSE, CUSPARSE_ORDER_ROW
-        //    );
-
-        //    // create output dense matrix
-        //    cusparseCreateDnMat(
-        //        &output_dense, m, k, k, d_output_value, DCuSPARSE, CUSPARSE_ORDER_ROW
-        //    );
-
-        //    InType alpha = 1.0;
-        //    InType beta  = 0.0;
-        //    size_t buffer_size;
-        //    void* dBuffer = NULL;
-
-        //    // get buffer
-        //    cusparseSpMM_bufferSize(
-        //        handle, CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE,
-        //        &alpha, lhs_sparse, rhs_dense, &beta, output_dense, DCuSPARSE, CUSPARSE_SPMM_CSR_ALG2, &buffer_size
-        //    );
-
-        //    checkCuda(cudaMalloc(&dBuffer, buffer_size));
-        //    
-        //    /*
-        //    // preprocess to get additional speedup
-        //    cusparseSpMM_preprocess(
-        //        handle, CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE,
-        //        &alpha, lhs_sparse, rhs_dense, &beta, output_dense, CUDA_R_16F, CUSPARSE_SPMM_CSR_ALG2,
-        //        dBuffer
-        //    );
-        //    */
-
-        //    // execute SpMM
-        //    cusparseSpMM(
-        //        handle, CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE,
-        //        &alpha, lhs_sparse, rhs_dense, &beta, output_dense, DCuSPARSE, CUSPARSE_SPMM_CSR_ALG2,
-        //        dBuffer
-        //    );
-
-        //    checkCuda(cudaFree(dBuffer));
-        //    cusparseDestroyDnMat(rhs_dense);
-        //    cusparseDestroyDnMat(output_dense);
-        //    cusparseDestroySpMat(lhs_sparse);
-        //    cusparseDestroy(handle);
-        //}
-
 
         if (func){
             OutType *output_value_cuda = new OutType[dimM * dimN];
@@ -823,9 +677,6 @@ int main(int argc, char **argv){
 	else if ((preA == 16) && (preB == 8) && (vec_length == 8)) BmFN<long long, int, int, short, half2, short2, CUDA_R_16F>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 2);
 	else if ((preA == 16) && (preB == 8) && (vec_length == 4)) BmFN<long long, int, int, short, half2, short2, CUDA_R_16F>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
 	else if ((preA == 16) && (preB == 8) && (vec_length == 2)) BmFN<int, int, int, short, half2, short2, CUDA_R_16F>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
-	//else if ((preA == 16) && (preB == 8) && (vec_length == 8)) BmFN<short, int, int, short, half2, short2, CUDA_R_16F>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 8);
-	//else if ((preA == 16) && (preB == 8) && (vec_length == 4)) BmFN<short, int, int, short, half2, short2, CUDA_R_16F>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 4);
-	//else if ((preA == 16) && (preB == 8) && (vec_length == 2)) BmFN<short, int, int, short, half2, short2, CUDA_R_16F>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 2);
 	else if ((preA == 16) && (preB == 16) && (vec_length == 8)) BmFN<short, int, int, short, half2, short2, CUDA_R_16F>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 8);
 	else if ((preA == 16) && (preB == 16) && (vec_length == 4)) BmFN<short, int, int, short, half2, short2, CUDA_R_16F>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 4);
 	else if ((preA == 16) && (preB == 16) && (vec_length == 2)) BmFN<short, int, int, short, half2, short2, CUDA_R_16F>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 2);
