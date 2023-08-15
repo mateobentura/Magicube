@@ -1,3 +1,7 @@
 ## ignore this file ##
 *.log
 *.o
+*.txt
+spmm_benchmark
+sddmm_benchmark
+
