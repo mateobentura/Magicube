@@ -1,8 +1,8 @@
 ## ignore this file ##
 *.log
 *.o
-spmm_*.txt
-sddmm_*.txt
+#spmm_*.txt
+#sddmm_*.txt
 spmm_benchmark
 sddmm_benchmark
-
+results/

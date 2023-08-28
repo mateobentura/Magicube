@@ -73,7 +73,7 @@ double compute_ref_integers(TypeA *A, int *B, int *ref_C, int M_GLOBAL, int K_GL
     return flops;
 }
 
-template <typename TypeA, typename TypeB, typename OutType, typename IndexType>
+template <typename TypeA, typename TypeB, typename OutType>
 void BmFN(std::string benchmark, int N, int vec_length, int kernel, bool sorted, bool func, int sparse, int preA, int preA_cut, int preB, int scaleA){
 
     // Open the benchmark file
@@ -94,8 +94,10 @@ void BmFN(std::string benchmark, int N, int vec_length, int kernel, bool sorted,
     if(preA_cut == 4 || preB == 4)
         mma_k_dim = 32;
 
-    printf("preA %d, preA_cut %d, preB %d, vec_length %d \n", preA, preA_cut, preB, vec_length); 
-    printf("m_vec %d, dimN %d, nonzeros_vec %d, dimk %d, mma_k_dim %d \n", m_vec, dimN, nonzeros_vec, dimK, mma_k_dim); 
+    printf("%.2f,%d,%d,%d,",1.0-(float)nonzeros/(dimM*dimK), preA_cut, preB, vec_length); 
+    //printf("preA %d, preA_cut %d, preB %d, vec_length %d \n", preA, preA_cut, preB, vec_length); 
+    printf("%d,%d,%d,", dimM, dimN, dimK); 
+    //printf("m_vec %d, dimN %d, nonzeros_vec %d, dimk %d, mma_k_dim %d \n", m_vec, dimN, nonzeros_vec, dimK, mma_k_dim); 
 
     // Create the A column indices
 
@@ -106,7 +108,7 @@ void BmFN(std::string benchmark, int N, int vec_length, int kernel, bool sorted,
     cudaDeviceProp deviceProp;
     cudaGetDeviceProperties(&deviceProp, d);
 
-    printf("number of SMs: %d\n", deviceProp.multiProcessorCount);
+    //printf("number of SMs: %d\n", deviceProp.multiProcessorCount);
 
     // SpMM
     if (sparse == 1){
@@ -135,7 +137,7 @@ void BmFN(std::string benchmark, int N, int vec_length, int kernel, bool sorted,
 	        aligned_row_offsets[i*2-1] = aligned_row_offsets[i*2-2] + num_item;
 	    }
 
-        std::cout << " nonzero_vec: " << nonzeros_vec << " aligned_ nonzero_vec: " << aligned_num_item  << "\n" ;
+        //std::cout << " nonzero_vec: " << nonzeros_vec << " aligned_ nonzero_vec: " << aligned_num_item  << "\n" ;
         int *aligned_col_indices = new int[aligned_num_item];
         int *aligned_col_indices_shuffle = new int[aligned_num_item];
        	for(int i = 0; i < aligned_num_item; i++){
@@ -166,9 +168,12 @@ void BmFN(std::string benchmark, int N, int vec_length, int kernel, bool sorted,
         values = new TypeA[nonzeros * scaleA * preA / (sizeof(TypeA)*8)];
         rhs_matrix = new TypeB[dimK * dimN * preB / (sizeof(TypeB)*8)];
     
-        MakeDenseMatrix<TypeA>(1, nonzeros * scaleA * preA / (sizeof(TypeA)*8), values, generator);
-        MakeDenseMatrix<TypeB>(dimK, dimN * preB / (sizeof(TypeB)*8), rhs_matrix, generator);
+        MakeDenseMatrix(1, nonzeros * scaleA * preA / (sizeof(TypeA)*8), values, generator);
+        MakeDenseMatrix(dimK, dimN * preB / (sizeof(TypeB)*8), rhs_matrix, generator);
     
+        // MakeDenseMatrix<TypeA>(1, nonzeros * scaleA * preA / (sizeof(TypeA)*8), values, generator);
+        // MakeDenseMatrix<TypeB>(dimK, dimN * preB / (sizeof(TypeB)*8), rhs_matrix, generator);
+        
         aligned_values = new TypeA[aligned_num_item * scaleA];
         aligned_values_transpose = new TypeA[aligned_num_item * scaleA];
         aligned_values_transpose_decompose = new TypeA[aligned_num_item * scaleA];
@@ -535,12 +540,14 @@ void BmFN(std::string benchmark, int N, int vec_length, int kernel, bool sorted,
                        cudaEventDestroy(spmm_end);
                        spmm_ms_avg += spmm_ms;
        	    }
-               }
-        else{
-            printf("Unsupported Kernel \n");
-        }
+    }
+    
+    else{
+        printf("Unsupported Kernel \n");
+    }
 
-	std::cout << "Magicube SpMM runtime " << spmm_ms_avg/(float)NUM_PROFILES << " ms" << "\n";
+	std::cout<< spmm_ms_avg/(float)NUM_PROFILES; 
+	//std::cout << "Magicube SpMM runtime " << spmm_ms_avg/(float)NUM_PROFILES << " ms" << "\n";
 	if (func){
             spmm_ms_avg = spmm_ms_avg/(float)NUM_PROFILES/1000.0;
             std::cout << "performance TOP/s: " << flops/spmm_ms_avg/1000.0 << "\n";
@@ -634,32 +641,32 @@ int main(int argc, char **argv){
         int sparse = std::atoi(argv[7]);
         int preA = std::atoi(argv[8]);
         int preB = std::atoi(argv[9]);
-        std::cout << "Sparse matrix: " << benchmark << "\n" ;
+        //std::cout << "Sparse matrix: " << benchmark << "\n" ;
 
-	if ((preA == 4) && (preB == 4) && (vec_length == 8)) BmFN<int, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
-	else if ((preA == 4) && (preB == 4) && (vec_length == 4)) BmFN<short, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
-	else if ((preA == 4) && (preB == 4) && (vec_length == 2)) BmFN<char, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
-	else if ((preA == 8) && (preB == 4) && (vec_length == 8)) BmFN<long long, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
-	else if ((preA == 8) && (preB == 4) && (vec_length == 4)) BmFN<int, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
-	else if ((preA == 8) && (preB == 4) && (vec_length == 2)) BmFN<short, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
-	else if ((preA == 12) && (preB == 4) && (vec_length == 8)) BmFN<long long, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, 16, preA, preB, 2);
-	else if ((preA == 12) && (preB == 4) && (vec_length == 4)) BmFN<long long, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, 16, preA, preB, 1);
-	else if ((preA == 12) && (preB == 4) && (vec_length == 2)) BmFN<int, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, 16, preA, preB, 1);
-	else if ((preA == 16) && (preB == 4) && (vec_length == 8)) BmFN<long long, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 2);
-	else if ((preA == 16) && (preB == 4) && (vec_length == 4)) BmFN<long long, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
-	else if ((preA == 16) && (preB == 4) && (vec_length == 2)) BmFN<int, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
-	else if ((preA == 8) && (preB == 8) && (vec_length == 8)) BmFN<long long, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
-	else if ((preA == 8) && (preB == 8) && (vec_length == 4)) BmFN<int, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
-	else if ((preA == 8) && (preB == 8) && (vec_length == 2)) BmFN<short, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
-	else if ((preA == 12) && (preB == 8) && (vec_length == 8)) BmFN<long long, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, 16, preA, preB, 2);
-	else if ((preA == 12) && (preB == 8) && (vec_length == 4)) BmFN<long long, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, 16, preA, preB, 1);
-	else if ((preA == 12) && (preB == 8) && (vec_length == 2)) BmFN<int, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, 16, preA, preB, 1);
-	else if ((preA == 16) && (preB == 8) && (vec_length == 8)) BmFN<long long, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 2);
-	else if ((preA == 16) && (preB == 8) && (vec_length == 4)) BmFN<long long, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
-	else if ((preA == 16) && (preB == 8) && (vec_length == 2)) BmFN<int, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
-	else if ((preA == 16) && (preB == 16) && (vec_length == 8)) BmFN<short, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 8);
-	else if ((preA == 16) && (preB == 16) && (vec_length == 4)) BmFN<short, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 4);
-	else if ((preA == 16) && (preB == 16) && (vec_length == 2)) BmFN<short, int, int, short>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 2);
+	if ((preA == 4) && (preB == 4) && (vec_length == 8)) BmFN<int, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
+	else if ((preA == 4) && (preB == 4) && (vec_length == 4)) BmFN<short, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
+	else if ((preA == 4) && (preB == 4) && (vec_length == 2)) BmFN<char, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
+	else if ((preA == 8) && (preB == 4) && (vec_length == 8)) BmFN<long long, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
+	else if ((preA == 8) && (preB == 4) && (vec_length == 4)) BmFN<int, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
+	else if ((preA == 8) && (preB == 4) && (vec_length == 2)) BmFN<short, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
+	else if ((preA == 12) && (preB == 4) && (vec_length == 8)) BmFN<long long, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, 16, preA, preB, 2);
+	else if ((preA == 12) && (preB == 4) && (vec_length == 4)) BmFN<long long, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, 16, preA, preB, 1);
+	else if ((preA == 12) && (preB == 4) && (vec_length == 2)) BmFN<int, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, 16, preA, preB, 1);
+	else if ((preA == 16) && (preB == 4) && (vec_length == 8)) BmFN<long long, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 2);
+	else if ((preA == 16) && (preB == 4) && (vec_length == 4)) BmFN<long long, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
+	else if ((preA == 16) && (preB == 4) && (vec_length == 2)) BmFN<int, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
+	else if ((preA == 8) && (preB == 8) && (vec_length == 8)) BmFN<long long, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
+	else if ((preA == 8) && (preB == 8) && (vec_length == 4)) BmFN<int, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
+	else if ((preA == 8) && (preB == 8) && (vec_length == 2)) BmFN<short, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
+	else if ((preA == 12) && (preB == 8) && (vec_length == 8)) BmFN<long long, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, 16, preA, preB, 2);
+	else if ((preA == 12) && (preB == 8) && (vec_length == 4)) BmFN<long long, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, 16, preA, preB, 1);
+	else if ((preA == 12) && (preB == 8) && (vec_length == 2)) BmFN<int, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, 16, preA, preB, 1);
+	else if ((preA == 16) && (preB == 8) && (vec_length == 8)) BmFN<long long, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 2);
+	else if ((preA == 16) && (preB == 8) && (vec_length == 4)) BmFN<long long, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
+	else if ((preA == 16) && (preB == 8) && (vec_length == 2)) BmFN<int, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 1);
+	else if ((preA == 16) && (preB == 16) && (vec_length == 8)) BmFN<short, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 8);
+	else if ((preA == 16) && (preB == 16) && (vec_length == 4)) BmFN<short, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 4);
+	else if ((preA == 16) && (preB == 16) && (vec_length == 2)) BmFN<short, int, int>(benchmark, dimN, vec_length, kernel, sorted, func, sparse, preA, preA, preB, 2);
 	else printf("Unsupported precision and vec_length!\n");
     }
     printf("\n");
